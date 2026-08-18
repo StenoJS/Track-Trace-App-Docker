@@ -75,11 +75,20 @@ async function pollOnce() {
 
   for (const mail of mails) {
     const parsed = parseCourierMail(mail);
-    if (!parsed) continue;
+    if (!parsed) {
+      // Pre-filter (gmail.js) matchte wel, parseCourierMail niet -- logt
+      // zodat een gemist format zichtbaar is i.p.v. stil te verdwijnen.
+      console.warn(`Niet herkend, overgeslagen: "${mail.subject}" van ${mail.from}`);
+    } else {
+      const text = formatTelegramMessage(parsed);
+      await broadcast(config.telegramToken, config.telegramChatIds, text);
+    }
 
-    const text = formatTelegramMessage(parsed);
-    await broadcast(config.telegramToken, config.telegramChatIds, text);
-
+    // Altijd als verwerkt markeren -- anders blijft een mail die de
+    // pre-filter haalt maar niet herkend wordt élke poll opnieuw
+    // terugkomen (oneindige herhaling, nooit verstuurd, nooit als fout
+    // zichtbaar) omdat lastSeenDate/excludeMessageIds nooit voorbij hem
+    // komen.
     state.processedMessageIds.push(mail.messageId);
     if (!state.lastSeenDate || mail.date > new Date(state.lastSeenDate)) {
       state.lastSeenDate = mail.date.toISOString();
