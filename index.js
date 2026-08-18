@@ -29,6 +29,11 @@ const config = {
     .filter(Boolean),
   pollIntervalMs: Number(env.POLL_INTERVAL_MINUTES || 10) * 60 * 1000,
   statePath: env.STATE_PATH || "/data/state.json",
+  // Optioneel: eigen postcode voor een direct werkende PostNL track&trace-
+  // link (die vereist ook de postcode, zie lib/parse.js). Zonder deze
+  // env-var krijg je nog wel een link, alleen moet je de postcode er zelf
+  // nog even bij invullen op hun site.
+  postnlPostcode: env.POSTNL_POSTCODE || null,
 };
 
 let state = await loadState(config.statePath);
@@ -80,7 +85,7 @@ async function pollOnce() {
       // zodat een gemist format zichtbaar is i.p.v. stil te verdwijnen.
       console.warn(`Niet herkend, overgeslagen: "${mail.subject}" van ${mail.from}`);
     } else {
-      const text = formatTelegramMessage(parsed);
+      const text = formatTelegramMessage(parsed, { postnlPostcode: config.postnlPostcode });
       await broadcast(config.telegramToken, config.telegramChatIds, text);
     }
 

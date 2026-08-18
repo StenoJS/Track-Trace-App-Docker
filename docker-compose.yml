@@ -36,6 +36,7 @@ services:
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
       TELEGRAM_CHAT_IDS: "${TELEGRAM_CHAT_IDS}"
       POLL_INTERVAL_MINUTES: "${POLL_INTERVAL_MINUTES:-10}"
+      POSTNL_POSTCODE: "${POSTNL_POSTCODE:-}"
       STATE_PATH: "/data/state.json"
     volumes:
       - pakket-tracker-data:/data
