@@ -16,10 +16,18 @@
 # Secrets (GMAIL_APP_PASSWORD, TELEGRAM_BOT_TOKEN) horen als
 # stack-omgevingsvariabele in Portainer, niet hier in het bestand — zelfde
 # patroon als VNC_PASSWORD_BOL/AMAZON bij playwright-mcp.
+#
+# pull_policy: build -- zonder dit probeert Portainer's "Update the stack"
+# (en git-redeploy) een `docker pull` te doen op de image-naam die compose
+# automatisch afleidt (project-service, hier "track-trace-app-docker-
+# pakket-tracker"). Die naam bestaat nergens in een registry (puur lokaal
+# gebouwd via `build: .`), dus dat gaf "pull access denied". Dit forceert
+# altijd lokaal bouwen, nooit pullen.
 
 services:
   pakket-tracker:
     build: .
+    pull_policy: build
     container_name: pakket-tracker
     restart: unless-stopped
     environment:
