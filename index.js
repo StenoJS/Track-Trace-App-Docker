@@ -1,7 +1,7 @@
 import { loadState, saveState } from "./lib/state.js";
 import { fetchNewCourierMails } from "./lib/gmail.js";
 import { parseCourierMail, formatTelegramMessage } from "./lib/parse.js";
-import { createBot, registerCommands, launchBot, broadcast } from "./lib/telegram.js";
+import { broadcast } from "./lib/telegram.js";
 
 const env = process.env;
 
@@ -20,6 +20,13 @@ const config = {
   imapHost: env.GMAIL_IMAP_HOST || "imap.gmail.com",
   imapPort: Number(env.GMAIL_IMAP_PORT || 993),
   telegramToken: required("TELEGRAM_BOT_TOKEN"),
+  // Komma-gescheiden lijst, bv. "123456789,987654321" (jij + familieleden).
+  // Los op te vragen via @userinfobot, of je hebt 'm al staan in de
+  // bestaande HA Telegram-config als dit token daar ook voor gebruikt wordt.
+  telegramChatIds: required("TELEGRAM_CHAT_IDS")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean),
   pollIntervalMs: Number(env.POLL_INTERVAL_MINUTES || 10) * 60 * 1000,
   statePath: env.STATE_PATH || "/data/state.json",
 };
@@ -27,14 +34,10 @@ const config = {
 let state = await loadState(config.statePath);
 const persist = () => saveState(config.statePath, state);
 
-const bot = createBot(config.telegramToken);
-registerCommands(bot, state, persist);
-launchBot(bot).catch((err) => {
-  console.error("Telegram-bot kon niet starten:", err.message);
-  process.exit(1);
-});
-
-console.log(`Pakket-tracker gestart. Poll-interval: ${config.pollIntervalMs / 60000} min.`);
+console.log(
+  `Pakket-tracker gestart. Poll-interval: ${config.pollIntervalMs / 60000} min. ` +
+    `Ontvangers: ${config.telegramChatIds.length}.`
+);
 
 async function pollOnce() {
   const excludeMessageIds = new Set(state.processedMessageIds);
@@ -56,7 +59,10 @@ async function pollOnce() {
     return;
   }
 
-  if (mails.length === 0) return;
+  if (mails.length === 0) {
+    console.log("Geen nieuwe koeriersmail gevonden.");
+    return;
+  }
 
   console.log(`${mails.length} nieuwe koeriersmail(s) gevonden.`);
 
@@ -65,11 +71,7 @@ async function pollOnce() {
     if (!parsed) continue;
 
     const text = formatTelegramMessage(parsed);
-    if (state.chatIds.length === 0) {
-      console.log("Geen Telegram-chat gekoppeld (stuur /start naar de bot) — bericht overgeslagen:", text);
-    } else {
-      await broadcast(bot, state.chatIds, text);
-    }
+    await broadcast(config.telegramToken, config.telegramChatIds, text);
 
     state.processedMessageIds.push(mail.messageId);
     if (!state.lastSeenDate || mail.date > new Date(state.lastSeenDate)) {
@@ -96,7 +98,6 @@ loop();
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.once(signal, async () => {
     console.log(`${signal} ontvangen, afsluiten...`);
-    bot.stop(signal);
     await persist().catch(() => {});
     process.exit(0);
   });

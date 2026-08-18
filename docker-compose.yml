@@ -1,10 +1,17 @@
 # Pakket-tracker: bewaakt Gmail (IMAP) op DHL/PostNL-bezorgmails en stuurt de
 # statusupdates door naar Telegram.
 #
-# Geen publiek steno.nl-adres en geen open poort nodig: zowel de IMAP-poll
-# als de Telegram-bot (long-polling) zijn puur uitgaande verbindingen. Draait
+# Geen publiek steno.nl-adres en geen open poort nodig: zowel IMAP als het
+# versturen via de Telegram Bot API zijn puur uitgaande verbindingen. Draait
 # daarom zonder Nginx Proxy Manager-entry, wel op het gedeelde hassio-netwerk
 # voor consistentie met de rest van de stack en beheer via Portainer.
+#
+# Let op: dit bot-token wordt ook gebruikt door de Telegram-integratie in
+# Home Assistant. Deze service doet daarom bewust GEEN eigen long-polling
+# (getUpdates) -- dat zou botsen met HA's eigen polling (Telegram staat maar
+# één actieve getUpdates-verbinding per token toe, zie 409 Conflict-fout in
+# de git-historie). Alleen sendMessage wordt gebruikt, dat kan prima naast
+# elkaar. Chat-id's dus via TELEGRAM_CHAT_IDS, geen /start-commando.
 #
 # Secrets (GMAIL_APP_PASSWORD, TELEGRAM_BOT_TOKEN) horen als
 # stack-omgevingsvariabele in Portainer, niet hier in het bestand — zelfde
@@ -19,6 +26,7 @@ services:
       GMAIL_USER: "${GMAIL_USER}"
       GMAIL_APP_PASSWORD: "${GMAIL_APP_PASSWORD}"
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
+      TELEGRAM_CHAT_IDS: "${TELEGRAM_CHAT_IDS}"
       POLL_INTERVAL_MINUTES: "${POLL_INTERVAL_MINUTES:-10}"
       STATE_PATH: "/data/state.json"
     volumes:

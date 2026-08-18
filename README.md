@@ -13,7 +13,7 @@ service leest gewoon mee.
    `@dhl.com` en `@postnl.nl`.
 2. Het onderwerp (en bij PostNL de "Track & trace-code" in de body) wordt
    omgezet naar een kort Telegram-bericht.
-3. Elke bekende Telegram-chat (zie `/start` hieronder) krijgt het bericht.
+3. Elke chat_id in `TELEGRAM_CHAT_IDS` krijgt het bericht.
 4. Verwerkte mails worden onthouden in `/data/state.json` (Docker-volume), dus
    een herstart stuurt niets dubbel.
 
@@ -30,16 +30,20 @@ IMAP met een gewoon wachtwoord werkt niet meer bij Gmail. Nodig:
 
 ### 2. Telegram
 
-Je hebt al een bot. Nodig is alleen de **bot-token** (van BotFather,
-`123456789:AA...`) — dat wordt `TELEGRAM_BOT_TOKEN`. Een chat_id hoef je niet
-zelf op te zoeken: stuur na het deployen gewoon `/start` naar je bot vanuit
-Telegram, dan onthoudt de service die chat zelf.
+Je hebt al een bot — en dat token wordt ook al gebruikt door de
+Telegram-integratie in Home Assistant. Telegram staat maar **één actieve
+long-polling-verbinding (getUpdates) per bot-token** toe, dus deze service
+doet bewust *geen* eigen polling en heeft dus ook geen `/start`-commando om
+zelf een chat_id te ontdekken (dat gaf een `409 Conflict` met HA's eigen
+polling). Versturen van berichten (`sendMessage`) botst niet en werkt gewoon
+naast HA's integratie.
 
-Beschikbare commando's in de bot:
+Nodig:
 
-- `/start` — koppel deze chat aan de tracker
-- `/stop` — ontkoppel deze chat
-- `/status` — laatste controle-tijdstip
+- `TELEGRAM_BOT_TOKEN` — hetzelfde token als in HA.
+- `TELEGRAM_CHAT_IDS` — komma-gescheiden lijst met chat_id's die berichten
+  moeten ontvangen. Zoek je eigen chat_id op via `@userinfobot` in Telegram,
+  of hergebruik de chat_id die al in je HA Telegram-configuratie staat.
 
 ### 3. Deployen (Portainer, hassio-netwerk)
 
@@ -52,10 +56,10 @@ Zelfde patroon als de andere self-hosted diensten:
    - `GMAIL_USER`
    - `GMAIL_APP_PASSWORD`
    - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_CHAT_IDS`
    - `POLL_INTERVAL_MINUTES` (optioneel, default 10)
 3. Deploy. Container heeft geen open poort en geen NPM-entry nodig — alle
-   verbindingen (IMAP, Telegram long-polling) zijn uitgaand.
-4. Stuur `/start` naar je bot.
+   verbindingen (IMAP, Telegram sendMessage) zijn uitgaand.
 
 ## Lokaal draaien (zonder Docker)
 
@@ -71,7 +75,7 @@ npm start
 index.js          Hoofdloop: poll-interval, dedupe, Telegram-verzending
 lib/gmail.js       IMAP-ophalen van nieuwe koeriersmail
 lib/parse.js       Onderwerp/body → koerier + trackingcode + statustekst
-lib/telegram.js    Bot-commando's (/start, /stop, /status) + broadcast
+lib/telegram.js    sendMessage/broadcast via de Telegram Bot API (geen polling)
 lib/state.js       Persistente state (/data/state.json)
 ```
 

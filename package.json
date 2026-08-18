@@ -9,7 +9,6 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "imapflow": "^1.0.171",
-    "telegraf": "^4.16.3"
+    "imapflow": "^1.0.171"
   }
 }
