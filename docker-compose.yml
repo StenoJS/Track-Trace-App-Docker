@@ -1,0 +1,34 @@
+# Pakket-tracker: bewaakt Gmail (IMAP) op DHL/PostNL-bezorgmails en stuurt de
+# statusupdates door naar Telegram.
+#
+# Geen publiek steno.nl-adres en geen open poort nodig: zowel de IMAP-poll
+# als de Telegram-bot (long-polling) zijn puur uitgaande verbindingen. Draait
+# daarom zonder Nginx Proxy Manager-entry, wel op het gedeelde hassio-netwerk
+# voor consistentie met de rest van de stack en beheer via Portainer.
+#
+# Secrets (GMAIL_APP_PASSWORD, TELEGRAM_BOT_TOKEN) horen als
+# stack-omgevingsvariabele in Portainer, niet hier in het bestand — zelfde
+# patroon als VNC_PASSWORD_BOL/AMAZON bij playwright-mcp.
+
+services:
+  pakket-tracker:
+    build: .
+    container_name: pakket-tracker
+    restart: unless-stopped
+    environment:
+      GMAIL_USER: "${GMAIL_USER}"
+      GMAIL_APP_PASSWORD: "${GMAIL_APP_PASSWORD}"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}"
+      POLL_INTERVAL_MINUTES: "${POLL_INTERVAL_MINUTES:-10}"
+      STATE_PATH: "/data/state.json"
+    volumes:
+      - pakket-tracker-data:/data
+    networks:
+      - hassio
+
+volumes:
+  pakket-tracker-data:
+
+networks:
+  hassio:
+    external: true
