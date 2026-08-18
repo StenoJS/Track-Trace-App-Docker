@@ -45,15 +45,22 @@ async function pollOnce() {
 
   let mails;
   try {
-    mails = await fetchNewCourierMails({
-      host: config.imapHost,
-      port: config.imapPort,
-      secure: true,
-      user: config.gmailUser,
-      pass: config.gmailPass,
-      sinceDate,
-      excludeMessageIds,
-    });
+    // Harde bovengrens op de hele poll: al liep hier eerder een echte deadlock
+    // in (zie git-historie van lib/gmail.js), een timeout zorgt dat een
+    // onverwachte hang de volgende cycli niet blijft blokkeren.
+    mails = await withTimeout(
+      fetchNewCourierMails({
+        host: config.imapHost,
+        port: config.imapPort,
+        secure: true,
+        user: config.gmailUser,
+        pass: config.gmailPass,
+        sinceDate,
+        excludeMessageIds,
+      }),
+      60_000,
+      "IMAP-poll"
+    );
   } catch (err) {
     console.error("IMAP-poll mislukt:", err.message);
     return;
@@ -80,6 +87,13 @@ async function pollOnce() {
   }
 
   await persist();
+}
+
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} duurde langer dan ${ms}ms`)), ms)),
+  ]);
 }
 
 function daysAgo(n) {
